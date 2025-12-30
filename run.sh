@@ -27,3 +27,5 @@ __main() {
 
 	echo "Done!"
 }
+
+__main
