@@ -2,39 +2,22 @@
 
 set -euo pipefail
 
-__install() {
-	_dotfiles_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-	cd "$_dotfiles_dir"
+# 检查并安装 stow
+command -v stow >/dev/null 2>&1 || apt install -y stow
 
-	command -v stow >/dev/null 2>&1 || {
-		echo "stow is not installed"
-		exit 1
-	}
+# 获取 dotfiles 目录
+_dotfiles_dir="${DOTFILES_DIR:-$HOME/.dotfiles}"
 
-	for _dir in */; do
-		if [[ -d "$_dir" ]] && [[ ! "$_dir" =~ ^\.git ]]; then
-			echo "Stowing $_dir..."
-			# 先处理冲突文件
-			while IFS= read -r -d '' _file; do
-				_rel_path="${_file#"$_dir"}"
-				_target="$HOME/$_rel_path"
-				if [[ -e "$_target" ]] && [[ ! -L "$_target" ]]; then
-					echo "  Backing up existing $_rel_path..."
-					mv "$_target" "${_target}.bak.$(date +%s)"
-				elif [[ -L "$_target" ]]; then
-					rm "$_target"
-				fi
-			done < <(find "$_dir" -type f -not -path "*/\.git/*" -print0)
+# 如果不存在就 clone
+[[ -d "$_dotfiles_dir" ]] || git clone https://github.com/wangsendi/dotfiles.git "$_dotfiles_dir"
 
-			stow -t "$HOME" -d "$_dotfiles_dir" "$_dir" --ignore="\.git"
-		fi
-	done
+cd "$_dotfiles_dir"
 
-	echo "Done!"
-}
+# 执行 stow
+for _dir in */; do
+	[[ -d "$_dir" ]] && [[ ! "$_dir" =~ ^\.git ]] || continue
+	echo "Stowing $_dir..."
+	stow -t "$HOME" -d "$_dotfiles_dir" "$_dir" --ignore="\.git"
+done
 
-__main() {
-	__install
-}
-
-__main "$@"
+echo "Done!"
